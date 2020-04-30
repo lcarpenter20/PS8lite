@@ -29,6 +29,7 @@ library(tidyverse)
 library(janitor)
 library(skimr)
 library(randomForest)
+library(caret)
 
 # Set seed value of random number generator here:
 set.seed(76)
@@ -187,13 +188,30 @@ MiscVal + MoSold + YrSold" %>%
 Fit one Random Forest model `model_rf` using any approach you want.
 
 ```{r}
+#define cross-validation settings: 10-fold CV 
+fit_control <- trainControl(method = "cv", number = 10)
 
+#search grid of "tuning paramter" 
+mtry <- 2:5 
+tunegrid <- expand.grid(.mtry = mtry)
 ```
 
+```{r}
+model_rf_caret <- caret::train(
+  form = model_formula,
+  data = training, 
+  method = "rf",
+  metric = "RMSE",
+  trControl = fit_control,
+  tuneGrid = tunegrid
+)
+```
 
+```{r}
+model_rf_caret
+```
 
 ***
-
 
 
 # Make predictions and submit to Kaggle
@@ -201,9 +219,23 @@ Fit one Random Forest model `model_rf` using any approach you want.
 Using `model_rf` make predictions and submit to Kaggle.
 
 ```{r}
+test <- test %>% 
+  mutate(
+    logSalePrice_hat_rf_caret = predict(object = model_rf_caret, newdata = test), 
+    SalePrice_hat_rf_caret = exp(logSalePrice_hat_rf_caret) - 1
+  )
+glimpse(test)
+```
 
+```{r eval = FALSE}
+submission_rf_caret <- test %>%
+  mutate(SalePrice = SalePrice_hat_rf_caret) %>%
+  select(Id, SalePrice)
+write_csv(submission_rf_caret, "submission_rf_caret.csv")
+  
 ```
 
 
-![](images/score_screenshot_naive.png){ width=100% }
+
+![](images/score_screenshot.png){ width=100% }
 
